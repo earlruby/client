@@ -18,6 +18,7 @@ const ff: FeatureFlags = {
   outOfDateBanner: true,
   plansEnabled: false,
   proofProviders: true,
+  sendAttachmentToChat: true,
   useNewRouter: false,
 }
 
