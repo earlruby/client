@@ -31,3 +31,5 @@ Check that outside of a box audit, reaudit actually does work on normal team loa
 investigate so many BOXAUD logs on startup
 
 GET OTHERS to do full hej
+
+maybe lower cmd retries to 2 again... since its not necessary
