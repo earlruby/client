@@ -33,3 +33,8 @@ investigate so many BOXAUD logs on startup
 GET OTHERS to do full hej
 
 maybe lower cmd retries to 2 again... since its not necessary
+
+!!!!
+teamloader - use a timeout so we don't have deadlock
+
+PUBLIC kbweb wasn't deployed yet, so how did all my impteams pass audit? 
