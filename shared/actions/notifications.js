@@ -73,18 +73,14 @@ function* notificationsSaga(): Saga.SagaGenerator<any, any> {
     EngineGen.keybase1NotifyAuditRootAuditError,
     receivedRootAuditError
   )
-  yield* Saga.chainAction<EngineGen.ConnectedPayload>(EngineGen.connected, setupNotifications)
-  yield* Saga.chainAction<EngineGen.Keybase1NotifyBadgesBadgeStatePayload>(
-    EngineGen.keybase1NotifyBadgesBadgeState,
-    createBadgeState
-  )
   yield* Saga.chainAction<EngineGen.Keybase1NotifyAuditBoxAuditErrorPayload>(
     EngineGen.keybase1NotifyAuditBoxAuditError,
     receivedBoxAuditError
   )
-  yield* Saga.chainAction<ConfigGen.SetupEngineListenersPayload>(
-    ConfigGen.setupEngineListeners,
-    setupEngineListeners
+  yield* Saga.chainAction<EngineGen.ConnectedPayload>(EngineGen.connected, setupNotifications)
+  yield* Saga.chainAction<EngineGen.Keybase1NotifyBadgesBadgeStatePayload>(
+    EngineGen.keybase1NotifyBadgesBadgeState,
+    createBadgeState
   )
 }
 
