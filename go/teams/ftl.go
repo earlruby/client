@@ -1,7 +1,6 @@
 package teams
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -108,18 +107,9 @@ func (f *FastTeamChainLoader) Load(m libkb.MetaContext, arg keybase1.FastTeamLoa
 		}
 	}
 
-	teamID := res.Name.ToTeamID(arg.Public)
-	shouldSkip, ok := m.Ctx().Value(SkipBoxAuditCheckContextKey).(bool)
-	if !(ok && shouldSkip) {
-		didReaudit, err := m.G().GetTeamBoxAuditor().AssertUnjailedOrReaudit(m, teamID)
-		if err != nil || didReaudit {
-			if err != nil {
-				m.G().NotifyRouter.HandleBoxAuditError(err.Error())
-			}
-			ctx := context.WithValue(m.Ctx(), SkipBoxAuditCheckContextKey, true)
-			m = m.WithCtx(ctx)
-			return f.Load(m, originalArg)
-		}
+	newM, shouldReload := VerifyBoxAudit(m, res.Name.ToTeamID(arg.Public))
+	if shouldReload {
+		return f.Load(newM, originalArg)
 	}
 
 	return res, nil

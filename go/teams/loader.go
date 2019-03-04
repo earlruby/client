@@ -308,17 +308,9 @@ func (l *TeamLoader) load1(ctx context.Context, me keybase1.UserVersion, lArg ke
 		}
 	}
 
-	shouldSkip, ok := ctx.Value(SkipBoxAuditCheckContextKey).(bool)
-	if !(ok && shouldSkip) {
-		mctx := libkb.NewMetaContext(ctx, l.G())
-		didReaudit, err := l.G().GetTeamBoxAuditor().AssertUnjailedOrReaudit(mctx, teamID)
-		if err != nil || didReaudit {
-			if err != nil {
-				l.G().NotifyRouter.HandleBoxAuditError(err.Error())
-			}
-			ctx = context.WithValue(ctx, SkipBoxAuditCheckContextKey, true)
-			return l.load1(ctx, me, lArg)
-		}
+	newMctx, shouldReload := VerifyBoxAudit(libkb.NewMetaContext(ctx, l.G()), teamID)
+	if shouldReload {
+		return l.load1(newMctx.Ctx(), me, lArg)
 	}
 
 	return &ret.team, nil

@@ -56,6 +56,24 @@ func (e FatalBoxAuditError) Error() string {
 	return fmt.Sprintf("audit failed fatally; will not be retried: %s", e.inner)
 }
 
+func VerifyBoxAudit(mctx libkb.MetaContext, teamID keybase1.TeamID) (newMctx libkb.MetaContext, shouldReload bool) {
+	shouldSkip, ok := mctx.Ctx().Value(SkipBoxAuditCheckContextKey).(bool)
+	if !ok || shouldSkip {
+		return mctx, false
+	}
+	mctx = mctx.WithCtx(context.WithValue(mctx.Ctx(), SkipBoxAuditCheckContextKey, true))
+
+	didReaudit, err := mctx.G().GetTeamBoxAuditor().AssertUnjailedOrReaudit(mctx, teamID)
+	if err != nil {
+		mctx.G().NotifyRouter.HandleBoxAuditError(err.Error())
+		return mctx, true
+	}
+	if didReaudit {
+		return mctx, true
+	}
+	return mctx, false
+}
+
 // BoxAuditor ensures all of a team's secret boxes are encrypted for the right people,
 // and that the server has not neglected to notify a team to rotate their keys in the event
 // of a user revoking a device or resetting their account. Security depends on the security
