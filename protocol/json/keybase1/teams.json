@@ -1710,10 +1710,6 @@
         {
           "type": "boolean",
           "name": "allowNameLookupBurstCache"
-        },
-        {
-          "type": "boolean",
-          "name": "skipBoxAuditCheck"
         }
       ]
     },
