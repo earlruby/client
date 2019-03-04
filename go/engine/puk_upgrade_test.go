@@ -42,7 +42,7 @@ func TestPerUserKeyUpgrade(t *testing.T) {
 	checkPerUserKeyCount(&tc, 1)
 
 	t.Logf("revoke paper key")
-	RevokeAnyPaperKey(tc, fu)
+	revokeAnyPaperKey(tc, fu)
 
 	t.Logf("should be on gen 2")
 	checkPerUserKeyCountLocal(&tc, 2)

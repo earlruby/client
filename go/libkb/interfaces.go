@@ -695,7 +695,6 @@ type TeamBoxAuditor interface {
 	BoxAuditRandomTeam(m MetaContext) (err error)
 	BoxAuditTeam(m MetaContext, id keybase1.TeamID) (err error)
 	Attempt(m MetaContext, id keybase1.TeamID, rotateBeforeAudit bool) keybase1.BoxAuditAttempt
-	// TODO actually register this
 	OnLogout(m MetaContext)
 }
 

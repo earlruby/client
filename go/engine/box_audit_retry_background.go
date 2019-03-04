@@ -71,5 +71,5 @@ func BoxAuditRetryBackgroundRound(mctx libkb.MetaContext) error {
 		return nil
 	}
 
-	return g.GetTeamBoxAuditor().BoxAuditRandomTeam(mctx)
+	return g.GetTeamBoxAuditor().RetryNextBoxAudit(mctx)
 }

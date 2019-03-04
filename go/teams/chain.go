@@ -853,7 +853,6 @@ func (t *teamSigchainPlayer) addInnerLink(
 			enforceGeneric("settings", rules.Settings, team.Settings != nil),
 			enforceGeneric("kbfs", rules.KBFS, team.KBFS != nil),
 			enforceGeneric("box-summary-hash", rules.BoxSummaryHash, team.BoxSummaryHash != nil),
-			// TODO add here
 			allowInImplicitTeam(rules.AllowInImplicitTeam),
 			allowInflate(rules.AllowInflate),
 			enforceFirstInChain(rules.FirstInChain),
@@ -1009,15 +1008,14 @@ func (t *teamSigchainPlayer) addInnerLink(
 			}
 		}
 	case libkb.LinkTypeChangeMembership:
-		changeMembershipRules := LinkRules{
+		err = enforce(LinkRules{
 			Members:             TristateRequire,
 			PerTeamKey:          TristateOptional,
 			Admin:               TristateOptional,
 			CompletedInvites:    TristateOptional,
-			BoxSummaryHash:      TristateOptional, //always optional
+			BoxSummaryHash:      TristateOptional,
 			AllowInImplicitTeam: true,
-		}
-		err = enforce(changeMembershipRules)
+		})
 		if err != nil {
 			return res, err
 		}
@@ -1148,15 +1146,6 @@ func (t *teamSigchainPlayer) addInnerLink(
 		isHighLink, err = t.roleUpdateChangedHighSet(prevState, roleUpdates)
 		if err != nil {
 			return res, fmt.Errorf("could not determine if high user set changed")
-		}
-
-		if team.PerTeamKey != nil {
-			// TODO won't be true until after a certain date...
-			changeMembershipRules.BoxSummaryHash = TristateOptional
-			err = enforce(changeMembershipRules)
-			if err != nil {
-				return res, err
-			}
 		}
 
 		moveState()
@@ -1648,11 +1637,9 @@ func (t *teamSigchainPlayer) addInnerLink(
 		}
 	}
 
-	g := res.newState.GetLatestGeneration()
-	batch := res.newState.inner.BoxSummaryHashes[g]
-	// TODO may not exist etc
-	// TODO remove != nil check, do rollout handling
 	if team.BoxSummaryHash != nil && res.newState.inner.BoxSummaryHashes != nil {
+		g := res.newState.GetLatestGeneration()
+		batch := res.newState.inner.BoxSummaryHashes[g] // batch zero-value is nil, so we can append to it
 		res.newState.inner.BoxSummaryHashes[g] = append(batch, team.BoxSummaryHash.BoxSummaryHash())
 	}
 

@@ -9,7 +9,6 @@ import (
 	"github.com/keybase/go-codec/codec"
 )
 
-// TODO do we need a full UV?
 type boxPublicSummaryTable map[keybase1.UID]keybase1.Seqno
 
 type boxPublicSummary struct {
@@ -28,6 +27,9 @@ func newBoxPublicSummary(d map[keybase1.UserVersion]keybase1.PerUserKey) (*boxPu
 	return newBoxPublicSummaryFromTable(table)
 }
 
+// encode only ever gets called with the boxPublicSummary is being constructed. This means
+// we don't allow mutation. Thus, we just encode it once, since if ever canonical encoding
+// stops working, it won't matter, we'll still get consistent results.
 func newBoxPublicSummaryFromTable(table boxPublicSummaryTable) (*boxPublicSummary, error) {
 	ret := boxPublicSummary{
 		table: table,
@@ -63,10 +65,4 @@ func (b boxPublicSummary) EncodeToString() string {
 
 func (b boxPublicSummary) IsEmpty() bool {
 	return len(b.table) == 0
-}
-
-func (b boxPublicSummary) Export() *keybase1.BoxPublicSummary {
-	return &keybase1.BoxPublicSummary{
-		Table: b.table,
-	}
 }

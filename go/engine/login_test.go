@@ -399,7 +399,7 @@ func TestProvisionWithRevoke(t *testing.T) {
 	secretFromY := <-secretCh
 
 	// x is going to revoke a device here to change the sigchain
-	revoked := RevokeAnyPaperKey(tcX, userX)
+	revoked := revokeAnyPaperKey(tcX, userX)
 	if revoked == nil {
 		t.Fatal("revokeAnyPaperKey for user x did not revoke anything")
 	}

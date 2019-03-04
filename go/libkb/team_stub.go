@@ -115,7 +115,7 @@ type TeamAuditParams struct {
 
 type nullTeamBoxAuditor struct{}
 
-var nullBoxAuditorError = fmt.Errorf("No team box auditor found. Are you running in standalone mode?")
+var nullBoxAuditorError = fmt.Errorf("No team box auditor configured.")
 
 var _ TeamBoxAuditor = nullTeamBoxAuditor{}
 

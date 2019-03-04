@@ -1537,6 +1537,7 @@ type AppConfig struct {
 	OutboxStorageEngine            string
 	DisableTeamAuditor             bool
 	DisableMerkleAuditor           bool
+	DisableTeamBoxAuditor          bool
 }
 
 var _ CommandLine = AppConfig{}
@@ -1659,6 +1660,10 @@ func (c AppConfig) GetDisableTeamAuditor() (bool, bool) {
 
 func (c AppConfig) GetDisableMerkleAuditor() (bool, bool) {
 	return c.DisableMerkleAuditor, true
+}
+
+func (c AppConfig) GetDisableTeamBoxAuditor() (bool, bool) {
+	return c.DisableTeamBoxAuditor, true
 }
 
 func (c AppConfig) GetAttachmentDisableMulti() (bool, bool) {

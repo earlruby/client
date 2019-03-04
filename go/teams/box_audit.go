@@ -325,8 +325,6 @@ func (a *BoxAuditor) IsInJail(mctx libkb.MetaContext, teamID keybase1.TeamID) (i
 		}
 		mctx.Error("Bad boolean type assertion in IsInJail LRU for %s", teamID)
 		// Fall through to disk if the LRU is corrupted
-		// TODO: remove next line for release
-		return false, fmt.Errorf("failed to coerce jail lru member %+v to bool", val)
 	}
 
 	mctx.Debug("Jail cache miss; continuing to disk")
@@ -1014,8 +1012,8 @@ func (a *BoxAuditor) maybeGetIntoVersioned(mctx libkb.MetaContext, v Versioned, 
 	found, err = mctx.G().LocalDb.GetInto(v, dbKey)
 	if err != nil {
 		mctx.Warning("Failed to unmarshal from db for key %+v: %s", dbKey, err)
-		// TODO: replace with "return false, nil" for release
-		return false, err
+		// Ignoring corruption; pretend it doesn't exist
+		return false, nil
 	}
 	if !found {
 		return false, nil

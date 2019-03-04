@@ -1,8 +1,6 @@
 // Copyright 2019 Keybase, Inc. All rights reserved. Use of
 // this source code is governed by the included BSD license.
 
-// +build !darwin,!windows
-
 package client
 
 import (
@@ -14,8 +12,6 @@ import (
 	"github.com/keybase/client/go/protocol/keybase1"
 	"golang.org/x/net/context"
 )
-
-const backtick = "`"
 
 func NewCmdAudit(cl *libcmdline.CommandLine, g *libkb.GlobalContext) cli.Command {
 	commands := []cli.Command{
@@ -90,8 +86,6 @@ func NewCmdAuditBox(cl *libcmdline.CommandLine, g *libkb.GlobalContext) cli.Comm
 	}
 }
 
-// func KnownTeamIDs(mctx libkb.MetaContext) ([]keybase1.TeamID, error) {
-
 func b2i(x bool) int {
 	if x {
 		return 1
@@ -149,7 +143,7 @@ func (c *CmdAuditBox) Run() error {
 			arg := keybase1.BoxAuditTeamArg{TeamID: teamID}
 			var err error
 			for idx := 0; idx < 2; idx++ {
-				// If the previous ones failed, it will be in the retry queue
+				// If the previous one failed, it will be in the retry queue
 				// and hence, this retry will rotate before attempt
 				// automatically.
 				err = cli.BoxAuditTeam(context.Background(), arg)
