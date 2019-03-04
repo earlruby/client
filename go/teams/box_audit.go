@@ -63,6 +63,7 @@ func VerifyBoxAudit(mctx libkb.MetaContext, teamID keybase1.TeamID) (newMctx lib
 	}
 	mctx = mctx.WithCtx(context.WithValue(mctx.Ctx(), SkipBoxAuditCheckContextKey, true))
 
+	mctx.G().NotifyRouter.HandleBoxAuditError("Test Box")
 	didReaudit, err := mctx.G().GetTeamBoxAuditor().AssertUnjailedOrReaudit(mctx, teamID)
 	if err != nil {
 		mctx.G().NotifyRouter.HandleBoxAuditError(err.Error())
