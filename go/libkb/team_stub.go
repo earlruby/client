@@ -119,8 +119,8 @@ var nullBoxAuditorError = fmt.Errorf("No team box auditor found. Are you running
 
 var _ TeamBoxAuditor = nullTeamBoxAuditor{}
 
-func (n nullTeamBoxAuditor) AssertUnjailedOrReaudit(m MetaContext, id keybase1.TeamID) error {
-	return nullBoxAuditorError
+func (n nullTeamBoxAuditor) AssertUnjailedOrReaudit(m MetaContext, id keybase1.TeamID) (bool, error) {
+	return false, nullBoxAuditorError
 }
 
 func (n nullTeamBoxAuditor) IsInJail(m MetaContext, id keybase1.TeamID) (bool, error) {

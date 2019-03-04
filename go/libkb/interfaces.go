@@ -689,7 +689,7 @@ type TeamAuditor interface {
 }
 
 type TeamBoxAuditor interface {
-	AssertUnjailedOrReaudit(m MetaContext, id keybase1.TeamID) error
+	AssertUnjailedOrReaudit(m MetaContext, id keybase1.TeamID) (didReaudit bool, err error)
 	IsInJail(m MetaContext, id keybase1.TeamID) (bool, error)
 	RetryNextBoxAudit(m MetaContext) (err error)
 	BoxAuditRandomTeam(m MetaContext) (err error)

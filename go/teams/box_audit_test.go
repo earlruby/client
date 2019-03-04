@@ -329,8 +329,9 @@ func TestBoxAuditAudit(t *testing.T) {
 	require.NoError(t, err)
 
 	// We are jailed, but reaudit passes
-	err = aA.AssertUnjailedOrReaudit(aM, teamID)
+	didReaudit, err := aA.AssertUnjailedOrReaudit(aM, teamID)
 	require.NoError(t, err)
+	require.True(t, didReaudit)
 
 	require.NoError(t, err, "no error since we rotate on retry now")
 	log, queue, jail = mustGetBoxState(aTc, aA, aM, teamID)
@@ -580,4 +581,28 @@ func TestBoxAuditImplicit(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, randomID)
 	require.True(t, teamIDs[1] == *randomID)
+}
+
+func TestBoxAuditSubteamWithImplicitAdmins(t *testing.T) {
+	fus, tcs, cleanup := setupNTests(t, 2)
+	_, bU := fus[0], fus[1]
+	aTc, bTc := tcs[0], tcs[1]
+	aM, bM := libkb.NewMetaContextForTest(*aTc), libkb.NewMetaContextForTest(*bTc)
+	_, bA := aTc.G.GetTeamBoxAuditor(), bTc.G.GetTeamBoxAuditor()
+	defer cleanup()
+
+	parentName, _ := createTeam2(*tcs[0])
+	// A is not in subteam
+	subteamID, err := CreateSubteam(aM.Ctx(), aTc.G, "abc", parentName, keybase1.TeamRole_NONE /* addSelfAs */)
+	require.NoError(t, err)
+	subTeamName, err := parentName.Append("abc")
+	require.NoError(t, err)
+
+	t.Logf("adding B as admin to subteam")
+	_, err = AddMember(aM.Ctx(), aTc.G, subTeamName.String(), bU.Username, keybase1.TeamRole_WRITER)
+	require.NoError(t, err)
+
+	// Even though A is not in subteam, A has a box because of implicit
+	// adminship. Check that B can still audit successfully.
+	require.NoError(t, bA.BoxAuditTeam(bM, *subteamID))
 }

@@ -7,7 +7,6 @@ package client
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/keybase/cli"
 	"github.com/keybase/client/go/libcmdline"
@@ -127,6 +126,11 @@ func (c *CmdAuditBox) ParseArgv(ctx *cli.Context) error {
 	return nil
 }
 
+type AuditResult struct {
+	teamID keybase1.TeamID
+	err    error
+}
+
 func (c *CmdAuditBox) Run() error {
 	cli, err := GetAuditClient(c.G())
 	if err != nil {
@@ -139,12 +143,12 @@ func (c *CmdAuditBox) Run() error {
 		if err != nil {
 			return err
 		}
-		var failedTeamIDs []keybase1.TeamID
+		var auditResults []AuditResult
 		for _, teamID := range knownTeamIDs {
-			c.G().Log.Info("Now auditing team %s...", teamID)
+			c.G().Log.Info("Auditing team %s...", teamID)
 			arg := keybase1.BoxAuditTeamArg{TeamID: teamID}
 			var err error
-			for idx := 0; idx < 3; idx++ {
+			for idx := 0; idx < 2; idx++ {
 				// If the previous ones failed, it will be in the retry queue
 				// and hence, this retry will rotate before attempt
 				// automatically.
@@ -153,22 +157,27 @@ func (c *CmdAuditBox) Run() error {
 					break
 				}
 			}
-			if err != nil {
-				c.G().Log.Error(fmt.Sprintf("Audit %s NOT OK: %s", teamID, err.Error()))
-				failedTeamIDs = append(failedTeamIDs, teamID)
+			auditResults = append(auditResults, AuditResult{
+				teamID: teamID,
+				err:    err,
+			})
+		}
+
+		ok := true
+		for _, auditResult := range auditResults {
+			var description string
+			if auditResult.err == nil {
+				description = "OK"
 			} else {
-				c.G().Log.Info("Audit for %s OK", teamID)
+				ok = false
+				description = fmt.Sprintf("ERROR %s", auditResult.err)
 			}
+			fmt.Printf("%s %s\n", auditResult.teamID, description)
 		}
-		if len(failedTeamIDs) == 0 {
-			return nil
-		} else {
-			failedTeamIDStrings := make([]string, len(failedTeamIDs))
-			for _, failedTeamID := range failedTeamIDs {
-				failedTeamIDStrings = append(failedTeamIDStrings, failedTeamID.String())
-			}
-			return fmt.Errorf("Audits failed for the following teams: %s. They will be retried periodically in the future automatically.", strings.Join(failedTeamIDStrings, ", "))
+		if !ok {
+			return fmt.Errorf("Some teams failed to pass an audit. This does not necessarily mean something is wrong, unless you are a member of those teams.")
 		}
+		return nil
 	case c.IsInJail:
 		ok, err := cli.IsInJail(context.Background(), keybase1.IsInJailArg{TeamID: c.TeamID})
 		if err != nil {

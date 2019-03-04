@@ -241,29 +241,24 @@ func (a *BoxAuditor) boxAuditTeamLocked(mctx libkb.MetaContext, teamID keybase1.
 	}
 }
 
-func (a *BoxAuditor) AssertUnjailedOrReaudit(mctx libkb.MetaContext, teamID keybase1.TeamID) (err error) {
+func (a *BoxAuditor) AssertUnjailedOrReaudit(mctx libkb.MetaContext, teamID keybase1.TeamID) (didReaudit bool, err error) {
 	mctx = a.initMctx(mctx)
 	defer mctx.TraceTimed("AssertUnjailedOrReaudit", func() error { return err })()
-	lock := a.locktab.AcquireOnName(mctx.Ctx(), mctx.G(), teamID.String())
-	defer lock.Release(mctx.Ctx())
-	return a.assertUnjailedOrReauditLocked(mctx, teamID)
-}
 
-func (a *BoxAuditor) assertUnjailedOrReauditLocked(mctx libkb.MetaContext, teamID keybase1.TeamID) (err error) {
-	defer mctx.TraceTimed(fmt.Sprintf("assertUnjailedOrReauditLocked(%s)", teamID), func() error { return err })()
-	inJail, err := a.isInJailLocked(mctx, teamID)
+	inJail, err := a.IsInJail(mctx, teamID)
 	if err != nil {
-		return fmt.Errorf("failed to check box audit jail during team load: %s", err)
+		return false, fmt.Errorf("failed to check box audit jail during team load: %s", err)
 	}
 	if !inJail {
-		return nil
+		return false, nil
 	}
+
 	mctx.Debug("team in jail; retrying box audit")
-	err = a.boxAuditTeamLocked(mctx, teamID)
+	err = a.BoxAuditTeam(mctx, teamID)
 	if err != nil {
-		return fmt.Errorf("failed to reaudit team in box audit jail: %s", err)
+		return false, fmt.Errorf("failed to reaudit team in box audit jail: %s", err)
 	}
-	return nil
+	return true, nil
 }
 
 // RetryNextBoxAudit selects a teamID from the box audit retry queue and performs another box audit.
@@ -303,13 +298,7 @@ func (a *BoxAuditor) BoxAuditRandomTeam(mctx libkb.MetaContext) (err error) {
 func (a *BoxAuditor) IsInJail(mctx libkb.MetaContext, teamID keybase1.TeamID) (inJail bool, err error) {
 	mctx = a.initMctx(mctx)
 	defer mctx.TraceTimed(fmt.Sprintf("IsInJail(%s)", teamID), func() error { return err })()
-	lock := a.locktab.AcquireOnName(mctx.Ctx(), mctx.G(), teamID.String())
-	defer lock.Release(mctx.Ctx())
-	return a.isInJailLocked(mctx, teamID)
-}
 
-func (a *BoxAuditor) isInJailLocked(mctx libkb.MetaContext, teamID keybase1.TeamID) (inJail bool, err error) {
-	defer mctx.TraceTimed(fmt.Sprintf("isInJailLocked(%s)", teamID), func() error { return err })()
 	val, ok := a.getJailLRU().Get(teamID)
 	if ok {
 		valBool, ok := val.(bool)
@@ -425,9 +414,9 @@ func (a *BoxAuditor) attemptLocked(mctx libkb.MetaContext, teamID keybase1.TeamI
 	}
 
 	if !bytes.Equal(clientSummary.Hash(), serverSummary.Hash()) {
-		mctx.Error("Box audit summary mismatch")
-		mctx.Error("Client summary: %+v", clientSummary.table)
-		mctx.Error("Server summary: %+v", serverSummary.table)
+		mctx.Debug("ERROR: Box audit summary mismatch")
+		mctx.Debug("Client summary: %+v", clientSummary.table)
+		mctx.Debug("Server summary: %+v", serverSummary.table)
 
 		attempt.Error = getErrorMessage(fmt.Errorf("box summary hash mismatch"))
 		return attempt
@@ -577,9 +566,9 @@ var _ libkb.TeamBoxAuditor = &DummyBoxAuditor{}
 
 const dummyMsg = "Box auditor disabled; aborting successfully"
 
-func (d DummyBoxAuditor) AssertUnjailedOrReaudit(mctx libkb.MetaContext, _ keybase1.TeamID) error {
+func (d DummyBoxAuditor) AssertUnjailedOrReaudit(mctx libkb.MetaContext, _ keybase1.TeamID) (bool, error) {
 	mctx.Warning(dummyMsg)
-	return nil
+	return false, nil
 }
 func (d DummyBoxAuditor) IsInJail(mctx libkb.MetaContext, _ keybase1.TeamID) (bool, error) {
 	mctx.Warning(dummyMsg)
@@ -808,12 +797,12 @@ func calculateExpectedSummary(mctx libkb.MetaContext, team *Team) (summary *boxP
 		}
 		puk := upak.Current.GetLatestPerUserKey()
 		if puk == nil {
-			mctx.Warning("skipping user %s who has no per-user-key; possibly reset", uv)
+			mctx.Debug("skipping user %s who has no per-user-key; possibly reset", uv)
 			return
 		}
 
 		if upak.Current.EldestSeqno != uv.EldestSeqno {
-			mctx.Warning("skipping user %s whose per-user-key is ahead of the team's member per-user-key; likely reset and needs to be readded", uv)
+			mctx.Debug("skipping user %s whose per-user-key is ahead of the team's member per-user-key; likely reset and needs to be readded", uv)
 			return
 		}
 
