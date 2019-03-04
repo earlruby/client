@@ -77,6 +77,7 @@ function* notificationsSaga(): Saga.SagaGenerator<any, any> {
   yield* Saga.chainAction<EngineGen.Keybase1NotifyBadgesBadgeStatePayload>(
     EngineGen.keybase1NotifyBadgesBadgeState,
     createBadgeState
+  )
   yield* Saga.chainAction<EngineGen.Keybase1NotifyAuditBoxAuditErrorPayload>(
     EngineGen.keybase1NotifyAuditBoxAuditError,
     receivedBoxAuditError
