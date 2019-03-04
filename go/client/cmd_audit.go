@@ -89,9 +89,8 @@ func NewCmdAuditBox(cl *libcmdline.CommandLine, g *libkb.GlobalContext) cli.Comm
 func b2i(x bool) int {
 	if x {
 		return 1
-	} else {
-		return 0
 	}
+	return 0
 }
 
 func (c *CmdAuditBox) ParseArgv(ctx *cli.Context) error {

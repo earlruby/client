@@ -71,6 +71,6 @@ func (m *MemDb) Lookup(alias DbKey) ([]byte, bool, error) {
 	return m.Get(alias)
 }
 
-func (l *MemDb) KeysWithPrefixes(prefixes ...[]byte) (DBKeySet, error) {
+func (m *MemDb) KeysWithPrefixes(prefixes ...[]byte) (DBKeySet, error) {
 	return nil, fmt.Errorf("unimplemented on memdb")
 }

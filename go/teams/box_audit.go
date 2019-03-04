@@ -28,9 +28,9 @@ const BoxAuditTag = "BOXAUD"
 const MaxBoxAuditQueueSize = 100
 const MaxBoxAuditLogSize = 10
 
-const SkipBoxAuditCheckContextKey = "skip-box-audit-check"
+type contextKey string
 
-/////////////////// METHODS
+const SkipBoxAuditCheckContextKey contextKey = "skip-box-audit-check"
 
 type ClientBoxAuditError struct {
 	inner error
@@ -53,7 +53,7 @@ type FatalBoxAuditError struct {
 }
 
 func (e FatalBoxAuditError) Error() string {
-	return fmt.Sprintf("audit failed fatally; will not be retried: %s", e.inner)
+	return fmt.Sprintf("audit failed fatally; will not be retried until requested: %s", e.inner)
 }
 
 func VerifyBoxAudit(mctx libkb.MetaContext, teamID keybase1.TeamID) (newMctx libkb.MetaContext, shouldReload bool) {
@@ -68,37 +68,34 @@ func VerifyBoxAudit(mctx libkb.MetaContext, teamID keybase1.TeamID) (newMctx lib
 		mctx.G().NotifyRouter.HandleBoxAuditError(err.Error())
 		return mctx, true
 	}
-	if didReaudit {
-		return mctx, true
-	}
-	return mctx, false
+	return mctx, didReaudit
 }
 
-// BoxAuditor ensures all of a team's secret boxes are encrypted for the right people,
-// and that the server has not neglected to notify a team to rotate their keys in the event
-// of a user revoking a device or resetting their account. Security depends on the security
-// of the Merkle tree so we know the current status of all the team's members.
-// BoxAuditor operations are thread-safe and can be run concurrently for many teams.
-// Security also relies on team members and the Keybase server not colluding
-// together to sign box summary hashes into the sigchain that don't match what
-// was actually encrypted (which is somewhat trivial, since members can leak
-// the secret if they want regardless of server cooperation).
+// BoxAuditor ensures all of a team's secret boxes are encrypted for the right
+// people, and that the server has not neglected to notify a team to rotate
+// their keys in the event of a user revoking a device or resetting their
+// account. Security depends on the security of the Merkle tree so we know the
+// current status of all the team's members.  BoxAuditor operations are
+// thread-safe and can be run concurrently for many teams.  Security also
+// relies on team members and the Keybase server not colluding together to sign
+// box summary hashes into the sigchain that don't match what was actually
+// encrypted (which is somewhat trivial, since members can leak the secret if
+// they want regardless of server cooperation).
 type BoxAuditor struct {
 	Version Version
 
 	// Singleflight lock on team ID.
 	locktab libkb.LockTable
 
-	// jailMutex and queueMutex are not per-team locks,
-	// since they are collections of multiple team IDs.
-	// Two audits of two teams can happen at the same time,
-	// but they cannot access the jail or the retry queue
-	// at the same time.
+	// jailMutex and queueMutex are not per-team locks, since they are
+	// collections of multiple team IDs.  Two audits of two teams can happen at
+	// the same time, but they cannot access the jail or the retry queue at the
+	// same time.
 	jailMutex  sync.Mutex
 	queueMutex sync.Mutex
 
-	// The box audit jail has an LRU for performance, we need a mutex
-	// so we don't use a partially initialized jailLRU.
+	// The box audit jail has an LRU for performance, we need a mutex so we
+	// don't use a partially initialized jailLRU.
 	jailLRUMutex sync.Mutex
 	jailLRU      *lru.Cache
 }
@@ -153,11 +150,11 @@ func (a *BoxAuditor) initMctx(mctx libkb.MetaContext) libkb.MetaContext {
 // BoxAuditTeam performs one attempt of a BoxAudit. If one is in progress for
 // the teamid, make a new attempt. If exceeded max tries or hit a malicious
 // error, return a fatal error.  Otherwise, make a new audit and fill it with
-// one attempt. Return an error if it's fatal only.  If the attempt failed
-// nonfatally, enqueue it in the retry queue. If it failed fatally, add it to
-// the jail. If it failed for reasons that are purely client-side, like a disk
-// write error, we retry it as well but distinguish it from a failure the server
-// could have possibly maliciously caused.
+// one attempt. If the attempt failed nonfatally, enqueue it in the retry
+// queue. If it failed fatally, add it to the jail. If it failed for reasons
+// that are purely client-side, like a disk write error, we retry it as well
+// but distinguish it from a failure the server could have possibly maliciously
+// caused.
 func (a *BoxAuditor) BoxAuditTeam(mctx libkb.MetaContext, teamID keybase1.TeamID) (err error) {
 	mctx = a.initMctx(mctx)
 	defer mctx.TraceTimed(fmt.Sprintf("BoxAuditTeam(%s)", teamID), func() error { return err })()
@@ -177,17 +174,15 @@ func (a *BoxAuditor) boxAuditTeamLocked(mctx libkb.MetaContext, teamID keybase1.
 		log = NewBoxAuditLog(a.Version)
 	}
 
-	lastAudit := log.Last()
 	isRetry := log.InProgress
-
 	rotateBeforeAudit := isRetry && !mctx.G().TestOptions.NoAutorotateOnBoxAuditRetry
 	attempt := a.attemptLocked(mctx, teamID, rotateBeforeAudit)
-
 	var id BoxAuditID
 	if isRetry {
-		mctx.Debug("Retrying failed box audit")
 		// If there's already an inprogress Audit (i.e., previous failure and
 		// we're doing a retry), rotate and do a new attempt in the same audit
+		mctx.Debug("Retrying failed box audit")
+		lastAudit := log.Last()
 		id = lastAudit.ID
 		newAudit := BoxAudit{
 			ID:       lastAudit.ID,
@@ -195,8 +190,8 @@ func (a *BoxAuditor) boxAuditTeamLocked(mctx libkb.MetaContext, teamID keybase1.
 		}
 		log.Audits[len(log.Audits)-1] = newAudit
 	} else {
-		mctx.Debug("Starting new box audit")
 		// If the last audit was completed, start a new audit.
+		mctx.Debug("Starting new box audit")
 		id, err = NewBoxAuditID()
 		if err != nil {
 			return ClientBoxAuditError{err}
@@ -251,6 +246,7 @@ func (a *BoxAuditor) boxAuditTeamLocked(mctx libkb.MetaContext, teamID keybase1.
 		}
 		return FatalBoxAuditError{errors.New(*attempt.Error)}
 	default: // retryable error
+		mctx.Debug("Box audit failed nonfatally")
 		err := a.pushRetryQueue(mctx, teamID, id)
 		if err != nil {
 			return ClientBoxAuditError{err}
@@ -294,9 +290,10 @@ func (a *BoxAuditor) RetryNextBoxAudit(mctx libkb.MetaContext) (err error) {
 	return a.BoxAuditTeam(mctx, (*queueItem).TeamID)
 }
 
-// BoxAuditRandomTeam selects a random known team from the cache, including
-// implicit teams, and audits it. It may succeed trivially because, for example, user is a reader
-// and so does not have permissions to do a box audit (keybase1.BoxAuditAttemptResult_OK_NOT_ATTEMPTED_*)
+// BoxAuditRandomTeam selects a random known team from the slow team or FTL
+// cache, including implicit teams, and audits it. It may succeed trivially
+// because, for example, user is a reader and so does not have permissions to
+// do a box audit or the team is an open team.
 func (a *BoxAuditor) BoxAuditRandomTeam(mctx libkb.MetaContext) (err error) {
 	mctx = a.initMctx(mctx)
 	defer mctx.TraceTimed("BoxAuditRandomTeam", func() error { return err })()
@@ -343,8 +340,8 @@ func (a *BoxAuditor) IsInJail(mctx libkb.MetaContext, teamID keybase1.TeamID) (i
 }
 
 // Attempt tries one time to box audit a Team ID. It does not store any
-// persistent state to disk related to the box audit, but it may, e.g.,
-// refresh the team cache since it loads that.
+// persistent state to disk related to the box audit, but it may, e.g., refresh
+// the team cache.
 func (a *BoxAuditor) Attempt(mctx libkb.MetaContext, teamID keybase1.TeamID, rotateBeforeAudit bool) (attempt keybase1.BoxAuditAttempt) {
 	mctx = a.initMctx(mctx)
 	defer mctx.TraceTimed(fmt.Sprintf("Attempt(%s, %t)", teamID, rotateBeforeAudit), func() error {
@@ -430,6 +427,9 @@ func (a *BoxAuditor) attemptLocked(mctx libkb.MetaContext, teamID keybase1.TeamI
 	}
 
 	if !bytes.Equal(clientSummary.Hash(), serverSummary.Hash()) {
+		// No need to make these Warnings, because these could happen when a
+		// user has just changed their PUK and CLKR hasn't fired yet, or if the
+		// team doesn't have any box summary hashes in the sigchain yet, etc.
 		mctx.Debug("ERROR: Box audit summary mismatch")
 		mctx.Debug("Client summary: %+v", clientSummary.table)
 		mctx.Debug("Server summary: %+v", serverSummary.table)
@@ -441,8 +441,6 @@ func (a *BoxAuditor) attemptLocked(mctx libkb.MetaContext, teamID keybase1.TeamI
 	attempt.Result = keybase1.BoxAuditAttemptResult_OK_VERIFIED
 	return attempt
 }
-
-////////////////////////////// INTERNAL STATEFUL
 
 func (a *BoxAuditor) clearRetryQueueOf(mctx libkb.MetaContext, teamID keybase1.TeamID) (queue *BoxAuditQueue, err error) {
 	defer mctx.TraceTimed(fmt.Sprintf("clearRetryQueueOf(%s)", teamID), func() error { return err })()
@@ -474,7 +472,7 @@ func (a *BoxAuditor) clearRetryQueueOfLocked(mctx libkb.MetaContext, teamID keyb
 	return queue, nil
 }
 
-func (a *BoxAuditor) popRetryQueue(mctx libkb.MetaContext) (item *BoxAuditQueueItem, err error) {
+func (a *BoxAuditor) popRetryQueue(mctx libkb.MetaContext) (itemPtr *BoxAuditQueueItem, err error) {
 	defer mctx.TraceTimed("popRetryQueue", func() error { return err })()
 	a.queueMutex.Lock()
 	defer a.queueMutex.Unlock()
@@ -486,16 +484,16 @@ func (a *BoxAuditor) popRetryQueue(mctx libkb.MetaContext) (item *BoxAuditQueueI
 	if queue == nil {
 		return nil, nil
 	}
-	if len(queue.Items) > 0 {
-		item, newItems := queue.Items[0], queue.Items[1:]
-		queue.Items = newItems
-		err := putQueueToDisk(mctx, queue)
-		if err != nil {
-			return nil, err
-		}
-		return &item, nil
+	if len(queue.Items) == 0 {
+		return nil, nil
 	}
-	return nil, nil
+	item, newItems := queue.Items[0], queue.Items[1:]
+	queue.Items = newItems
+	err = putQueueToDisk(mctx, queue)
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
 }
 
 func (a *BoxAuditor) pushRetryQueue(mctx libkb.MetaContext, teamID keybase1.TeamID, auditID BoxAuditID) (err error) {
@@ -508,7 +506,7 @@ func (a *BoxAuditor) pushRetryQueue(mctx libkb.MetaContext, teamID keybase1.Team
 		return err
 	}
 	if queue != nil {
-		// if already in the queue, remove it so we can bump it to the top
+		// If already in the queue, remove it so we can bump it to the top.
 		queue, err = a.clearRetryQueueOfLocked(mctx, teamID)
 		if err != nil {
 			return err
@@ -519,7 +517,7 @@ func (a *BoxAuditor) pushRetryQueue(mctx libkb.MetaContext, teamID keybase1.Team
 
 	queue.Items = append(queue.Items, BoxAuditQueueItem{Ctime: time.Now(), TeamID: teamID, BoxAuditID: auditID})
 	if len(queue.Items) > MaxBoxAuditQueueSize {
-		// truncate oldest first
+		// Truncate oldest first.
 		mctx.Debug("Truncating box audit queue")
 		queue.Items = queue.Items[len(queue.Items)-MaxBoxAuditQueueSize:]
 	}
@@ -573,8 +571,6 @@ func (a *BoxAuditor) unjail(mctx libkb.MetaContext, teamID keybase1.TeamID) (err
 	}
 	return nil
 }
-
-///////// TYPES
 
 type DummyBoxAuditor struct{}
 
@@ -708,8 +704,6 @@ func NewBoxAuditJail(version Version) *BoxAuditJail {
 	}
 }
 
-//////////////////////////// STATELESS (except for rotate)
-
 func (a *BoxAuditor) shouldAudit(mctx libkb.MetaContext, team Team) (bool, *keybase1.BoxAuditAttemptResult, error) {
 	if team.IsOpen() {
 		res := keybase1.BoxAuditAttemptResult_OK_NOT_ATTEMPTED_OPENTEAM
@@ -757,9 +751,8 @@ func loadTeamForBoxAuditInner(mctx libkb.MetaContext, teamID keybase1.TeamID, fo
 	if team.GetBoxSummaryHashes() == nil {
 		if force {
 			return nil, fmt.Errorf("failed to get a non-nil box summary map after full reload")
-		} else {
-			return loadTeamForBoxAuditInner(mctx, teamID, true)
 		}
+		return loadTeamForBoxAuditInner(mctx, teamID, true)
 	}
 	return team, nil
 }
@@ -940,8 +933,6 @@ func unmarshalAndVerifyBatchSummary(batchSummary string, expectedHash []byte) (b
 
 	return table, nil
 }
-
-///////////////////////// UTIL
 
 // TeamIDKeys takes a set of DBKeys that must all be tid:-style DBKeys and
 // extracts the team id from them. Because teams can be loaded via both FTL and

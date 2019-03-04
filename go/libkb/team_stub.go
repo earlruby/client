@@ -115,28 +115,28 @@ type TeamAuditParams struct {
 
 type nullTeamBoxAuditor struct{}
 
-var nullBoxAuditorError = fmt.Errorf("No team box auditor configured.")
+var errNullBoxAuditor = fmt.Errorf("No team box auditor configured.")
 
 var _ TeamBoxAuditor = nullTeamBoxAuditor{}
 
 func (n nullTeamBoxAuditor) AssertUnjailedOrReaudit(m MetaContext, id keybase1.TeamID) (bool, error) {
-	return false, nullBoxAuditorError
+	return false, errNullBoxAuditor
 }
 
 func (n nullTeamBoxAuditor) IsInJail(m MetaContext, id keybase1.TeamID) (bool, error) {
-	return false, nullBoxAuditorError
+	return false, errNullBoxAuditor
 }
 func (n nullTeamBoxAuditor) RetryNextBoxAudit(m MetaContext) (err error) {
-	return nullBoxAuditorError
+	return errNullBoxAuditor
 }
 func (n nullTeamBoxAuditor) BoxAuditRandomTeam(m MetaContext) (err error) {
-	return nullBoxAuditorError
+	return errNullBoxAuditor
 }
 func (n nullTeamBoxAuditor) BoxAuditTeam(m MetaContext, id keybase1.TeamID) (err error) {
-	return nullBoxAuditorError
+	return errNullBoxAuditor
 }
 func (n nullTeamBoxAuditor) Attempt(m MetaContext, id keybase1.TeamID, rotateBeforeAudit bool) keybase1.BoxAuditAttempt {
-	msg := nullBoxAuditorError.Error()
+	msg := errNullBoxAuditor.Error()
 	return keybase1.BoxAuditAttempt{Error: &msg}
 }
 func (n nullTeamBoxAuditor) OnLogout(m MetaContext) {}
