@@ -58,12 +58,11 @@ func (e FatalBoxAuditError) Error() string {
 
 func VerifyBoxAudit(mctx libkb.MetaContext, teamID keybase1.TeamID) (newMctx libkb.MetaContext, shouldReload bool) {
 	shouldSkip, ok := mctx.Ctx().Value(SkipBoxAuditCheckContextKey).(bool)
-	if !ok || shouldSkip {
+	if ok && shouldSkip {
 		return mctx, false
 	}
 	mctx = mctx.WithCtx(context.WithValue(mctx.Ctx(), SkipBoxAuditCheckContextKey, true))
 
-	mctx.G().NotifyRouter.HandleBoxAuditError("Test Box")
 	didReaudit, err := mctx.G().GetTeamBoxAuditor().AssertUnjailedOrReaudit(mctx, teamID)
 	if err != nil {
 		mctx.G().NotifyRouter.HandleBoxAuditError(err.Error())
