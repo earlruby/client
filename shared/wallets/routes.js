@@ -136,7 +136,6 @@ const sharedRoutes = {
   createNewAccount: {getScreen: () => require('./create-account/container').default},
   exportSecretKey: {getScreen: () => require('./export-secret-key/container').default},
   linkExisting: {getScreen: () => require('./link-existing/container').default},
-  reallyRemoveAccount: {getScreen: () => require('./wallet/settings/popups').ReallyRemoveAccountPopup},
   receive: {getScreen: () => require('./receive-modal/container').default},
   removeAccount: {getScreen: () => require('./wallet/settings/popups').RemoveAccountPopup},
   renameAccount: {getScreen: () => require('./wallet/settings/popups').RenameAccountPopup},
@@ -199,5 +198,6 @@ export const newRoutes = {
 }
 
 export const newModalRoutes = {
+  reallyRemoveAccount: {getScreen: () => require('./wallet/settings/popups').ReallyRemoveAccountPopup},
   ...require('./routes-send-request-form').newModalRoutes,
 }
