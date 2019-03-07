@@ -584,11 +584,11 @@ func TestBoxAuditImplicit(t *testing.T) {
 }
 
 func TestBoxAuditSubteamWithImplicitAdmins(t *testing.T) {
-	fus, tcs, cleanup := setupNTests(t, 2)
+	fus, tcs, cleanup := setupNTests(t, 3)
 	_, bU := fus[0], fus[1]
 	aTc, bTc := tcs[0], tcs[1]
 	aM, bM := libkb.NewMetaContextForTest(*aTc), libkb.NewMetaContextForTest(*bTc)
-	_, bA := aTc.G.GetTeamBoxAuditor(), bTc.G.GetTeamBoxAuditor()
+	aA, bA := aTc.G.GetTeamBoxAuditor(), bTc.G.GetTeamBoxAuditor()
 	defer cleanup()
 
 	parentName, _ := createTeam2(*tcs[0])
@@ -605,4 +605,27 @@ func TestBoxAuditSubteamWithImplicitAdmins(t *testing.T) {
 	// Even though A is not in subteam, A has a box because of implicit
 	// adminship. Check that B can still audit successfully.
 	require.NoError(t, bA.BoxAuditTeam(bM, *subteamID))
+
+	// Add third user as an admin to parent team. They will be boxed for
+	// subteam as well.
+	_, err = AddMember(aM.Ctx(), aM.G(), parentName.String(), fus[2].Username, keybase1.TeamRole_ADMIN)
+	require.NoError(t, err)
+
+	// Audit both teams again
+	require.NoError(t, aA.BoxAuditTeam(aM, parentName.RootID()))
+
+	// TODO: Possibly another bug - user A cannot audit subteam because they
+	// do not have a member role in that subteam, but they are implicit admin.
+	require.NoError(t, bA.BoxAuditTeam(bM, *subteamID))
+
+	// Right now this fails with:
+
+	// "audit failed; will be retried later: expected 2 box summary hashes for
+	// generation 1; got 3 from server."
+
+	// because we have two box summaries that are in the subteam sigchain (in
+	// "subteam_head" and "change_membership"), but when adding fus[2] to the
+	// root team as an admin, we created another box that was send via
+	// "implicit_team_keys" POST argument, and this box is unaccounted for in
+	// any of the sigchains.
 }
