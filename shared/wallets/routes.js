@@ -137,7 +137,6 @@ const sharedRoutes = {
   exportSecretKey: {getScreen: () => require('./export-secret-key/container').default},
   linkExisting: {getScreen: () => require('./link-existing/container').default},
   receive: {getScreen: () => require('./receive-modal/container').default},
-  removeAccount: {getScreen: () => require('./wallet/settings/popups').RemoveAccountPopup},
   renameAccount: {getScreen: () => require('./wallet/settings/popups').RenameAccountPopup},
   setDefaultAccount: {getScreen: () => require('./wallet/settings/popups').SetDefaultAccountPopup},
   setInflation: {getScreen: () => require('./wallet/settings/popups').InflationDestination},
@@ -199,5 +198,6 @@ export const newRoutes = {
 
 export const newModalRoutes = {
   reallyRemoveAccount: {getScreen: () => require('./wallet/settings/popups').ReallyRemoveAccountPopup},
+  removeAccount: {getScreen: () => require('./wallet/settings/popups').RemoveAccountPopup},
   ...require('./routes-send-request-form').newModalRoutes,
 }
