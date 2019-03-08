@@ -36,6 +36,8 @@ const mapDispatchToProps = (dispatch, {navigateUp}) => ({
       })
     )
     if (flags.useNewRouter) {
+      // Navigate up twice to clear both this modal and the remove
+      // account modal.
       dispatch(navigateUp())
       dispatch(navigateUp())
     }
