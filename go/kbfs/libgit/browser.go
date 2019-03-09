@@ -36,6 +36,7 @@ func translateGitError(err *error) {
 // Browser presents the contents of a git repo as a read-only file
 // system, using only the dotgit directory of the repo.
 type Browser struct {
+	repo       *gogit.Repository
 	tree       *object.Tree
 	root       string
 	mtime      time.Time
@@ -112,12 +113,21 @@ func NewBrowser(
 	}
 
 	return &Browser{
+		repo:        repo,
 		tree:        tree,
 		root:        string(gitBranchName),
 		mtime:       c.Author.When,
 		commitHash:  c.Hash,
 		sharedCache: sharedCache,
 	}, nil
+}
+
+func (b *Browser) GetCommitFile(hash plumbing.Hash) (*commitFile, error) {
+	commit, err := b.repo.CommitObject(hash)
+	if err != nil {
+		return nil, err
+	}
+	return newCommitFile(commit), nil
 }
 
 ///// Read-only functions:
@@ -214,6 +224,16 @@ func (b *Browser) OpenFile(filename string, flag int, _ os.FileMode) (
 func (b *Browser) Lstat(filename string) (fi os.FileInfo, err error) {
 	if b.tree == nil {
 		return nil, errors.New("Empty repo")
+	}
+
+	if strings.HasPrefix(filename, AutogitCommitPrefix) {
+		commit := strings.TrimPrefix(filename, AutogitCommitPrefix)
+		hash := plumbing.NewHash(commit)
+		f, err := b.GetCommitFile(hash)
+		if err != nil {
+			return nil, err
+		}
+		return f.GetInfo(), nil
 	}
 
 	cachePath := path.Join(b.root, filename)
